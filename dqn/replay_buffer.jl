@@ -69,11 +69,11 @@ function encode_sample(buf::ReplayBuffer, idxes; stack=1)
 
             obs_t, action, reward, obs_tp1, done = data
             if length(inpsize) < 3
-                obses_t[map(t->(t*(i-1+stack)+1):(t*(i-1+stack)+t), size(obs_t)[1:(end-1)])..., indx] = obs_t #stack frames
-                obses_tp1[map(t->(t*(i-1+stack)+1):(t*(i-1+stack)+t), size(obs_t)[1:(end-1)])..., indx] = obs_tp1 #stack frames
+                obses_t[(t*(i-1+stack)+1:t*(i-1+stack)+t for t=size(obs_t)[1:(end-1)])..., indx] = obs_t #stack frames
+                obses_tp1[(t*(i-1+stack)+1:t*(i-1+stack)+t for t=size(obs_t)[1:(end-1)])..., indx] = obs_tp1 #stack frames
             else
-                obses_t[map(t->1:t, size(obs_t)[1:(end-2)])..., i+stack, indx] = obs_t #stack frames
-                obses_tp1[map(t->1:t, size(obs_t)[1:(end-2)])..., i+stack, indx] = obs_tp1 #stack frames
+                obses_t[(1:t for t=size(obs_t)[1:(end-2)])..., i+stack, indx] = obs_t #stack frames
+                obses_tp1[(1:t for t=size(obs_t)[1:(end-2)])..., i+stack, indx] = obs_tp1 #stack frames
             end
             if i == 0
                 actions[indx] = action
