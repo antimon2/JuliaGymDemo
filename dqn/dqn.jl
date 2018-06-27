@@ -61,15 +61,11 @@ function dqn_learn(w::WeightParams{T}, opts, env, buffer, exploration, o) where 
                 obses_t, actions, rewards, obses_tp1, dones = sample_batch(buffer, o["bs"]; stack=o["stack"])
                 obses_tp1 = convert(o["atype"], obses_tp1)
                 #predict next q values with the target network
-                nextq = predict_q(target_w, obses_tp1; nh=n_hiddens)
-                nextq = Array(nextq)
+                nextq = Array(predict_q(target_w, obses_tp1; nh=n_hiddens))
                 maxs = maximum(nextq, 1)
                 nextmax = sum(nextq .* (nextq .== maxs), 1)
-                nextmax = reshape(nextmax, 1, length(nextmax))
-                targets = reshape(rewards,1,length(rewards)) .+ (o["gamma"] .* nextmax .* dones)
-                obses_t = convert(o["atype"], obses_t)
-                targets = convert(o["atype"], targets)
-                mse = train!(w, opts, obses_t, actions, targets; nh=n_hiddens)
+                targets = reshape(rewards, 1, :) .+ (o["gamma"] .* nextmax .* dones)
+                mse = train!(w, opts, convert(o["atype"], obses_t), actions, convert(o["atype"], targets); nh=n_hiddens)
             end
 
             if !o["no_save"] && fnum > readytosave
