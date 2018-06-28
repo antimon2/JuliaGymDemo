@@ -32,7 +32,7 @@ function dqn_learn(w::WeightParams{T}, opts, env, buffer, exploration, o) where 
     episode_rewards = Float32[]
     frames = Float32[]
     ob_t = reset!(env)
-    
+
     n_hiddens = get(o, "n_hiddens", length(o["hiddens"]))::Int
     target_w = o["play"] || o["tupdate"] <= 1 ? w : deepcopy(w)
 

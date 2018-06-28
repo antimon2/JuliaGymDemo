@@ -50,7 +50,7 @@ function encode_sample(buf::ReplayBuffer, idxes; stack=1)
     if length(inpsize) < 3
         stacksize = (inpsize[1]*stack, inpsize[2:end]...)
     else
-        stacksize = (inpsize[1], inpsize[2], inpsize[3]*4, inpsize[4:end]...)
+        stacksize = (inpsize[1], inpsize[2], inpsize[3]*stack, inpsize[4:end]...)
     end
 
     obses_t = zeros(Float32, stacksize..., bs)
@@ -69,11 +69,15 @@ function encode_sample(buf::ReplayBuffer, idxes; stack=1)
 
             obs_t, action, reward, obs_tp1, done = data
             if length(inpsize) < 3
-                obses_t[(t*(i-1+stack)+1:t*(i-1+stack)+t for t=size(obs_t)[1:(end-1)])..., indx] = obs_t #stack frames
-                obses_tp1[(t*(i-1+stack)+1:t*(i-1+stack)+t for t=size(obs_t)[1:(end-1)])..., indx] = obs_tp1 #stack frames
+                t_t = size(obs_t, 1)
+                obses_t[t_t*(i-1+stack)+1:t_t*(i-1+stack)+t_t, (Colon() for _=2:ndims(obs_t)-1)..., indx] = obs_t #stack frames
+                t_tp1 = size(obs_tp1, 1)
+                obses_tp1[t_tp1*(i-1+stack)+1:t_tp1*(i-1+stack)+t_tp1, (Colon() for _=2:ndims(obs_tp1)-1)..., indx] = obs_tp1 #stack frames
             else
-                obses_t[(1:t for t=size(obs_t)[1:(end-2)])..., i+stack, indx] = obs_t #stack frames
-                obses_tp1[(1:t for t=size(obs_t)[1:(end-2)])..., i+stack, indx] = obs_tp1 #stack frames
+                t_t = size(obs_t, 3)
+                obses_t[:, :, t_t*(i-1+stack)+1:t_t*(i-1+stack)+t_t, (Colon() for _=4:ndims(obs_t)-1)..., indx] = obs_t #stack frames
+                t_tp1 = size(obs_tp1, 3)
+                obses_tp1[:, :, t_tp1*(i-1+stack)+1:t_tp1*(i-1+stack)+t_tp1, (Colon() for _=4:ndims(obs_tp1)-1)..., indx] = obs_tp1 #stack frames
             end
             if i == 0
                 actions[indx] = action
@@ -92,9 +96,11 @@ function encode_recent(buf::ReplayBuffer, obs_t; stack::Int=1)
         inpsize = size(obs_t)[1:(end-1)] # get the dimensions of the input
         i = 0
         if length(inpsize) < 3
-            obses_t[(t*(i-1+stack)+1:t*(i-1+stack)+t for t=size(obs_t)[1:(end-1)])..., 1] = obs_t #stack frames
+            t = size(obs_t, 1)
+            obses_t[t*(i-1+stack)+1:t*(i-1+stack)+t, (Colon() for _=2:ndims(obs_t)-1)..., 1] = obs_t #stack frames
         else
-            obses_t[(1:t for t=size(obs_t)[1:(end-2)])..., i+stack, 1] = obs_t #stack frames
+            t = size(obs_t, 3)
+            obses_t[:, :, t*(i-1+stack)+1:t*(i-1+stack)+t, (Colon() for _=4:ndims(obs_t)-1)..., 1] = obs_t #stack frames
         end
     else
         bs = 1
@@ -109,9 +115,11 @@ function encode_recent(buf::ReplayBuffer, obs_t; stack::Int=1)
         obses_t = zeros(Float32, stacksize..., bs)
         for i = -(stack-1):0
             if length(inpsize) < 3
-                obses_t[(t*(i-1+stack)+1:t*(i-1+stack)+t for t=size(obs_t)[1:(end-1)])..., 1] = obs_t #stack frames
+                t = size(obs_t, 1)
+                obses_t[t*(i-1+stack)+1:t*(i-1+stack)+t, (Colon() for _=2:ndims(obs_t)-1)..., 1] = obs_t #stack frames
             else
-                obses_t[(1:t for t=size(obs_t)[1:(end-2)])..., i+stack, 1] = obs_t #stack frames
+                t = size(obs_t, 3)
+                obses_t[:, :, t*(i-1+stack)+1:t*(i-1+stack)+t, (Colon() for _=4:ndims(obs_t)-1)..., 1] = obs_t #stack frames
             end
         end
     end
