@@ -70,15 +70,16 @@ function init_weights(input_size::NTuple{3, Int}, conv_channels::Vector{Int}, hi
     return w
 end
 
-function save_model(w::WeightParams{T}, fname::AbstractString) where {T}
+function save_model(w::WeightParams{T}, fname::AbstractString, nc::Int, nh::Int) where {T}
     tmp = Dict{String, Array{T}}()
     for k in keys(w)
         tmp[k] = convert(Array{T}, w[k])
     end
-    save(fname, "model", tmp)
+    save(fname, "model", Dict("w"=>tmp, "nc"=>nc, "nh"=>nh))
 end
 
 function load_model(fname::AbstractString, ::Type{A}) where {A<:ArrayOrKnetArray{T} where T}
-    w = load(fname, "model")
-    return Dict{String, A}(k => convert(A, w[k]) for k in keys(w))
+    tmp = load(fname, "model")
+    w = tmp["w"]
+    return Dict{String, A}(k => convert(A, w[k]) for k in keys(w)), tmp["nc"], tmp["nh"]
 end

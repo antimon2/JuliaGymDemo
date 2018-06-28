@@ -50,16 +50,17 @@ function main(args::Vector{<:AbstractString})
     # cartpoleenv[:_max_episode_seconds] = typemax(Int)
 
     if o["load"] === nothing
-        INPUT_H, INPUT_W, INPUT_CH = env.observation_space.shape
+        # INPUT_H, INPUT_W, INPUT_CH = env.observation_space.shape
+        INPUT_H, INPUT_W, INPUT_CH = (64, 64, 1)    # 縮小サイズ
         INPUT_CH *= o["stack"]
         OUTPUT = env.action_space.n
         w = DQN.init_weights((INPUT_H, INPUT_W, INPUT_CH), o["channels"], o["hiddens"], OUTPUT, o["atype"])
-        o["n_channels"] = length(o["channels"])
+        o["n_convs"] = length(o["channels"])
         o["n_hiddens"] = length(o["hiddens"])
     else
-        w = DQN.load_model(o["load"], o["atype"])
-        o["n_channels"] = 3 # @TODO: n_channels の保存
-        o["n_hiddens"] = (length(w) - 6) ÷ 2 - 1
+        w, nc, nh = DQN.load_model(o["load"], o["atype"])
+        o["n_convs"] = nc
+        o["n_hiddens"] = nh
     end
 
     opts = Dict(k => Rmsprop(lr=o["lr"]) for k in keys(w))

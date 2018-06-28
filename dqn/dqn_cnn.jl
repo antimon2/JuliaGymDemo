@@ -26,12 +26,42 @@ function train!(w::WeightParams{T}, prms, states, actions, targets; nc=3, nh=1) 
     return mse
 end
 
+function n4max(img::Array{T,2}, newsize::NTuple{2,Int}) where {T}
+    ih, iw = size(img)
+    oh, ow = newsize
+    newimg = zeros(T, oh, ow)
+    for oy = 1:oh
+        for ox = 1:ow
+            ix = fld((ox - 1) * (iw - 2), (ow - 1)) + 1
+            iy = fld((oy - 1) * (ih - 2), (oh - 1)) + 1
+            newimg[oy, ox] = maximum(img[iy:iy+1, ix:ix+1])
+        end
+    end
+    newimg
+end
+
+function adjust_obs(ob_t::Array{UInt8, 3})
+    H, W, _ = size(ob_t)
+    float_ob_t = ob_t ./ 255f0
+    gray_ob_t = Float32[0.299f0*float_ob_t[y, x, 1] + 0.587f0*float_ob_t[y, x, 2] + 0.114f0*float_ob_t[y, x, 3]
+                        for y=1:H, x=1:W]
+    resized_ob_t = n4max(gray_ob_t, (64, 64))
+    reshape(resized_ob_t, (64, 64, 1))
+end
+
+function adjust_obs(t::Tuple{Array{UInt8, 3}, Any, Any, Any})
+    ob_t, _reward, _done, _info = t
+    (adjust_obs(ob_t), _reward, _done, _info)
+end
+
+# adjust_obs(ob_t) = ob_t # FALLBACK
+
 function dqn_learn(w::WeightParams{T}, opts, env, buffer, exploration, o) where {T}
     total = 0.0
     readytosave = save_interval = get(o, "save_interval", 10000)
     episode_rewards = Float32[]
     frames = Float32[]
-    ob_t = reset!(env)
+    ob_t = adjust_obs(reset!(env))
 
     n_convs = get(o, "n_convs", length(o["channels"]))::Int
     n_hiddens = get(o, "n_hiddens", length(o["hiddens"]))::Int
@@ -50,7 +80,7 @@ function dqn_learn(w::WeightParams{T}, opts, env, buffer, exploration, o) where 
             a = indmax(Array(qvals)) - 1
         end
         
-        ob_t, reward, done, _ = step!(env, a)
+        ob_t, reward, done, _ = adjust_obs(step!(env, a))
         total += reward 
 
         if !o["play"]
@@ -71,7 +101,7 @@ function dqn_learn(w::WeightParams{T}, opts, env, buffer, exploration, o) where 
 
             if !o["no_save"] && fnum > readytosave
                 model_filepath = "$(get(o, "model_prefix", ""))_$(fnum).jld"
-                save_model(w, model_filepath)
+                save_model(w, model_filepath, n_convs, n_hiddens)
                 readytosave += save_interval
             end
 
@@ -81,7 +111,7 @@ function dqn_learn(w::WeightParams{T}, opts, env, buffer, exploration, o) where 
         end
 
         if done
-            ob_t = reset!(env)
+            ob_t = adjust_obs(reset!(env))
             # o["printinfo"] && println("Frame: $fnum , Total reward: $total, Exploration Rate: $(value(exploration, fnum))")
             if o["printinfo"]
                 if o["play"]
